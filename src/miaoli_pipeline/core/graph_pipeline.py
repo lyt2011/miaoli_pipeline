@@ -14,10 +14,10 @@ from ..runtimes			import Handler
 from ..errors			import AgentAborted
 from ..utils.pipeline_helper	import (
 	ActionResult,
-	accumulate_data,
 	is_none_action,
 	is_update_action,
-	merge_data,
+	merge_into_state,
+	merge_into_updates,
 )
 
 import logging
@@ -110,7 +110,7 @@ class GraphPipeline(Generic[StateT, ContextT, InputT, OutputT]):
 		
 		"""按优先级执行该事件的全部处理器 返回本次累积的增量更新"""
 		
-		view	: Dict[str, Any] = merge_data(state, {}, self._graph.channels) # 保证他是一个字典
+		view	: Dict[str, Any] = merge_into_state(state, {}, self._graph.channels) # 保证他是一个字典
 		updates	: Dict[str, Any] = {} # updates用于记录本次增量内容
 		
 		for handler in tuple(self.handlers[event]):
@@ -131,8 +131,8 @@ class GraphPipeline(Generic[StateT, ContextT, InputT, OutputT]):
 			
 			if is_update_action(action):
 				delta	= action if isinstance(action, dict) else action.updates
-				updates	= accumulate_data(updates, delta, self._graph.channels)
-				view	= merge_data(state, updates, self._graph.channels)
+				updates	= merge_into_updates(updates, delta, self._graph.channels)
+				view	= merge_into_state(state, updates, self._graph.channels)
 			
 			if isinstance(action, Continue):
 				break

@@ -1,8 +1,12 @@
 """GraphPipeline 的增量折叠与返回值判定辅助函数。"""
 
-from typing			import Any, Dict, Mapping, Optional, Union
+from contextlib		import suppress
+from typing			import Any, Dict, Mapping, Optional, Sequence, Union
 
-from langgraph.types	import Overwrite
+from langgraph._internal._typing	import MISSING
+from langgraph.channels.base		import BaseChannel
+from langgraph.errors				import EmptyChannelError
+from langgraph.types				import Overwrite
 
 from ..actions			import BaseNodeAction
 
@@ -10,63 +14,61 @@ from ..actions			import BaseNodeAction
 ActionResult = Optional[Union[BaseNodeAction, Dict[str, Any]]]
 
 
-def merge_data(old_data: Mapping[str, Any], new_data: Mapping[str, Any], channels: Mapping[str, Any]) -> Dict[str, Any]:
+def merge_into_state(state: Mapping[str, Any], delta: Mapping[str, Any], channels: Mapping[str, Any]) -> Dict[str, Any]:
 	
 	"""
-	将 new_data 合进 old_data
+	把 delta 合并进 state 得到新状态
 	OverWrite 在此被展开/消费
 	"""
 	
-	merged	= dict(old_data)
+	merged	= dict(state)
 	
-	for key, value in new_data.items():
+	for key, value in delta.items():
 		
 		# 替换语义 直接换值
 		if isinstance(value, Overwrite):
 			merged[key] = value.value
 			continue
 		
-		channel		= channels.get(key)
-		operator	= getattr(channel, "operator", None)
+		channel	= channels.get(key)
 		
-		# 有特殊操作+增量信息->通过 operator 获取新量并返回
-		if operator is not None and key in merged:
-			merged[key] = operator(merged[key], value)
-		
-		# 无操作/不是增量 直接赋值
-		else:
-			merged[key] = value
-	
-	return merged
-
-def accumulate_data(old_data: Mapping[str, Any], new_data: Mapping[str, Any], channels: Mapping[str, Any]) -> Dict[str, Any]:
-	
-	"""把同一个事件里多个处理器的产出折叠成一份增量"""
-	
-	merged	= dict(old_data)
-	
-	for key, value in new_data.items():
-		
-		channel		= channels.get(key)
-		operator	= getattr(channel, "operator", None)
-		
-		# 无操作/不是增量 直接赋值
-		if operator is None or key not in merged:
+		# 无通道 直接赋值
+		if channel is None:
 			merged[key] = value
 			continue
 		
-		old	= merged[key]
+		merged[key] = apply_deltas(channel, merged.get(key, MISSING), [value])
+	
+	return merged
+
+def merge_into_updates(accumulated: Mapping[str, Any], delta: Mapping[str, Any], channels: Mapping[str, Any]) -> Dict[str, Any]:
+	
+	"""把同一个事件里多个处理器的产出折叠成一份增量"""
+	
+	merged	= dict(accumulated)
+	
+	for key, value in delta.items():
+		
+		channel	= channels.get(key)
+		
+		# 无通道 直接赋值
+		if channel is None:
+			merged[key] = value
+			continue
+		
+		old	= merged.get(key, MISSING)
 		
 		# 新来的要替换 -> 它已吸收此前的增量 直接接管
 		if isinstance(value, Overwrite):
 			merged[key] = value
+			continue
 		
 		# 之前是替换 -> 新增量叠在替换结果之上 包装保留
-		elif isinstance(old, Overwrite):
-			merged[key] = Overwrite(operator(old.value, value))
+		if isinstance(old, Overwrite):
+			merged[key] = Overwrite(apply_deltas(channel, MISSING, [old.value, value]))
+			continue
 		
-		else:
-			merged[key] = operator(old, value)
+		merged[key] = apply_deltas(channel, old, [value])
 	
 	return merged
 
@@ -81,3 +83,13 @@ def is_update_action(action: ActionResult) -> bool:
 	is_duck	= hasattr(action, "updates") and isinstance(action.updates, dict)
 	
 	return is_dict or is_duck
+
+def apply_deltas(channel: BaseChannel, base: Any, deltas: Sequence[Any]) -> Any:
+	
+	new = channel.from_checkpoint(base)
+	new.update(deltas)
+	
+	with suppress(EmptyChannelError):
+		return new.get()
+	
+	return MISSING

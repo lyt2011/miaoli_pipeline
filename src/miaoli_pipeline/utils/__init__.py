@@ -1,17 +1,19 @@
 from .pipeline_helper	import (
 	ActionResult,
-	accumulate_data,
+	apply_deltas,
 	is_none_action,
 	is_update_action,
-	merge_data,
+	merge_into_state,
+	merge_into_updates,
 )
 
 __all__ = [
 
 	"ActionResult",
-	"merge_data",
-	"accumulate_data",
+	"merge_into_state",
+	"merge_into_updates",
 	"is_none_action",
 	"is_update_action",
+	"apply_deltas",
 
 ]

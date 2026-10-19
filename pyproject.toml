@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "miaoli-pipeline"
-version = "1.0.0"
+version = "1.0.1"
 description = "miaoli_bot 的事件管线：把优先级事件处理器编排进 langgraph 状态图"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -20,7 +20,7 @@ miaoli_pipeline/
 ├── channels/   section_patch：SectionPatch
 ├── runtimes/   Handler
 ├── errors/     AgentAborted
-└── utils/      pipeline_helper：merge_data / accumulate_data / is_none_action / is_update_action
+└── utils/      pipeline_helper：merge_into_state / merge_into_updates / apply_deltas / is_none_action / is_update_action
 ```
 
 根 `__init__.py` 只暴露 `actions` / `channels` / `core` / `errors` / `protocols` / `runtimes`。`utils` 是内部辅助层，不暴露。
@@ -34,7 +34,7 @@ from miaoli_pipeline.protocols	import BaseNodeAction, Delta
 from miaoli_pipeline.channels	import SectionPatch
 from miaoli_pipeline.runtimes	import Handler
 from miaoli_pipeline.errors		import AgentAborted
-from miaoli_pipeline.utils		import merge_data, accumulate_data
+from miaoli_pipeline.utils		import merge_into_state, merge_into_updates, apply_deltas
 ```
 
 ## 核心概念
@@ -95,11 +95,29 @@ result = await pipeline.ainvoke({"log": []}, thread_id="demo", context=None)
 
 ## 增量折叠
 
-同一事件内多个 handler 的返回值由 `accumulate_data` 折叠，语义与 langgraph 通道一致：
+同一事件内多个 handler 的返回值由 `merge_into_updates` 折叠。折叠**走通道自己的 `update()`**，因此任何 `BaseChannel` 子类都自动生效，不需要额外提供 `.operator`：
 
-- 通道有 `operator`（`Annotated[T, func]`）→ 用 `operator` 合并
+```python
+def apply_deltas(channel, base, deltas):
+	new = channel.from_checkpoint(base)
+	new.update(deltas)
+	with suppress(EmptyChannelError):
+		return new.get()
+	return MISSING
+```
+
+- 有对应通道 → 交给 `apply_deltas`，用通道自己的语义折叠
 - 值是 `Overwrite(...)` → 整体替换，并吸收此前累积的增量
-- 通道没有 `operator` → 直接赋值（后写覆盖先写）
+- 没有对应通道 → 直接赋值（后写覆盖先写）
+
+`Overwrite` 的解包位置取决于用途：
+
+| 函数 | 产出 | `Overwrite` 处理 |
+|---|---|---|
+| `merge_into_state` | `view`，给下一个 handler 读 | **解包**成裸值 |
+| `merge_into_updates` | `updates`，交给 langgraph 写 | **保留**包装 |
+
+因为 `Overwrite` 是「给通道的指令」而不是「值」。handler 读到的必须是值，而通道要认得出指令。
 
 ## 通道：SectionPatch
 
