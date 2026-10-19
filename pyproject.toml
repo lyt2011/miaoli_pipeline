@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-pipeline"
+version = "0.1.0"
+description = "基于优先级的异步事件管线：把事件处理器编排进 langgraph 状态图"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+	"langgraph>=1.2,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_pipeline"]
