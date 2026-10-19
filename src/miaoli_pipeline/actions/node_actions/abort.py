@@ -1,4 +1,4 @@
-from .base	import BaseNodeAction, Delta
+from ...protocols.node_action	import BaseNodeAction
 
 class Abort(BaseNodeAction):
 	
@@ -10,8 +10,8 @@ class Abort(BaseNodeAction):
 	
 	def __init__(
 		self, *, 
-		reason	: str	= "null",
-		updates	: Delta	= None,
+		reason	: str				= "null",
+		updates	: Optional[dict]	= None,
 	) -> None:
 		
 		self.updates	= updates

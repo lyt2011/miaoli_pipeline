@@ -1,7 +1,7 @@
 from typing				import List, Union
 from langgraph.types	import Send
 
-from .base	import BaseNodeAction, Delta
+from ...protocols.node_action	import BaseNodeAction
 
 GotoTarget	= Union[str, Send, List[Union[str, Send]]]
 
@@ -12,7 +12,7 @@ class Goto(BaseNodeAction):
 	def __init__(
 		self, *,
 		goto	: GotoTarget,
-		updates	: Delta = None,
+		updates	: Optional[dict] = None,
 	) -> None:
 		
 		self.updates	= updates
