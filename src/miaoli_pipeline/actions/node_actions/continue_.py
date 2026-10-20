@@ -1,3 +1,5 @@
+from typing	import Optional
+
 from ...protocols.node_action	import BaseNodeAction
 
 

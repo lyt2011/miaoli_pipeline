@@ -1,4 +1,4 @@
-from typing				import List, Union
+from typing				import List, Optional, Union
 from langgraph.types	import Send
 
 from ...protocols.node_action	import BaseNodeAction

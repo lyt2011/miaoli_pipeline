@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.0.2 - 2026-10-20
+
+> 🧱 **修复 `Abort` / `Continue` / `Goto` 在 Python 3.12 下导入即报错**。三个文件的 `__init__` 注解用了 `Optional` 但没导入。
+
+Python 3.14 的 PEP 649 是惰性求值，注解只在被读取时才解析，所以本地（3.14.4）导入完全正常；Python 3.12 是立即求值，类体执行到 `def __init__(self, *, updates: Optional[dict] = None)` 时就会抛 `NameError: name 'Optional' is not defined`。
+
+部署到服务器（3.12.14）时才暴露：`import miaoli_pipeline` 直接失败，整包不可用。
+
+### Fixed
+
+- `actions/node_actions/abort.py`、`continue_.py`：补 `from typing import Optional`。
+- `actions/node_actions/goto.py`：`from typing import List, Union` → `List, Optional, Union`。
+
+### Note
+
+- 本地验证用 `typing.get_type_hints()` 强制立即求值可提前发现这类问题。注意要连**方法**一起扫 —— 只对类调 `get_type_hints()` 不会求值方法注解，会漏掉这三处。
+
 ## v1.0.1 - 2026-10-19
 
 > 🧱 **修复自定义通道在 `GraphPipeline` 里不折叠的问题**。判据从「有没有 `.operator` 属性」换成「有没有对应的通道实例」。
