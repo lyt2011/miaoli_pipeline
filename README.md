@@ -74,9 +74,9 @@ async def decide(state, runtime):
 pipeline = GraphPipeline(State)
 pipeline.wire(["start", "next"])        # 首个事件是图入口
 
-pipeline.register("start", first, priority=10)
-pipeline.register("start", second, priority=0)
-pipeline.register("start", decide, priority=-10)
+pipeline.register_handler("start", first, priority=10)
+pipeline.register_handler("start", second, priority=0)
+pipeline.register_handler("start", decide, priority=-10)
 
 pipeline.compile()
 result = await pipeline.ainvoke({"log": []}, thread_id="demo", context=None)

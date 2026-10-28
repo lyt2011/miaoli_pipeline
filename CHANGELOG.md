@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.1.0 - 2026-10-29
+
+> 🧱 **`register` 改名为 `register_handler`，并补上 `unregister_handler`**。原来的名字太泛 —— 它注册的是「事件处理器」而不是图节点；配套的注销能力此前完全没有，处理器一旦挂上去就摘不下来。
+
+`GraphPipeline.handlers` 是按 `priority` 降序排好的 `defaultdict(list)`。`unregister_handler` 遍历快照后按 `==` 比 `handler.function`：普通函数退化成身份比较，绑定方法按 `(__func__, __self__)` 比较，模块级函数和实例方法两种入参都能正确命中。事件不在表里、或表里没有这个处理器时静默跳过，方便卸载路径无脑调用。
+
+### Changed
+
+- `core/graph_pipeline.py`：`register(event, node, priority)` 改名为 `register_handler(event, node, priority)`，签名与排序语义不变。
+
+### Added
+
+- `core/graph_pipeline.py`：`unregister_handler(event, node)`。同一事件里同一个处理器被注册多次时会一并注销。
+
+### Docs
+
+- `README.md`：快速示例改用 `register_handler`。
+
 ## v1.0.2 - 2026-10-20
 
 > 🧱 **修复 `Abort` / `Continue` / `Goto` 在 Python 3.12 下导入即报错**。三个文件的 `__init__` 注解用了 `Optional` 但没导入。

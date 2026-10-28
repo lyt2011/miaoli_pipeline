@@ -96,15 +96,28 @@ class GraphPipeline(Generic[StateT, ContextT, InputT, OutputT]):
 		
 		return _node
 	
-	def register(self, event: str, node: Function[StateT, ContextT], priority: int = 0) -> None:
+	def register_handler(self, event: str, node: Function[StateT, ContextT], priority: int = 0) -> None:
 		
 		"""
-		注册事件处理器节点
+		注册事件处理器
 		注册时声明优先级，运行时编排顺序（priority 越大越先跑）
 		"""
 		
 		self.handlers[event].append(Handler(function=node, priority=priority))
 		self.handlers[event].sort(key=lambda handler: handler.priority, reverse=True)
+	
+	def unregister_handler(self, event: str, node: Function[StateT, ContextT]) -> None:
+		
+		"""
+		注销事件处理器
+		若一个事件有两个相同的处理器会被一起注销
+		不存在的事件/处理器 静默跳过
+		"""
+		
+		if event in self.handlers:
+			for handler in list(self.handlers[event]):
+				if node == handler.function:
+					self.handlers[event].remove(handler)
 	
 	async def _dispatch(self, event: str, state: StateT, runtime: Runtime[ContextT]) -> DispatchResult_:
 		
